@@ -17,7 +17,9 @@ let chatInfo = {
 for (let msg of rawChat.comments) {
     chatInfo.messages += 1;
     updateChatterInfo(msg);
-    updateDonation(msg);
+    updateSubscription(msg);
+    updateGifted(msg);
+    updateHitByGift(msg);
     updateBits(msg);
 }
 
@@ -37,8 +39,6 @@ console.log(`There were a total of ${chatInfo.bitters.length} chatters who donat
 console.log(`There were a total of ${chatInfo.gifted.length} chatters who were hit by gifted subs.`);
 
 function updateBits(msg) {
-    if (msg.message.bits_spent == 0) return;
-
     let bitterInfo = chatInfo.chatters[msg.commenter.name];
     if (!bitterInfo) {
         bitterInfo = {
@@ -53,25 +53,43 @@ function updateBits(msg) {
         }
     }
 
-    bitterInfo.bits += msg.message.bits_spent;
-    chatInfo.totalBits += msg.message.bits_spent;
+    let actualBits = 0;
+    let words = msg.message.body.split(' ');
+    for (let word of words) {
+        if (!word.includes("Cheer")) continue;
+
+        let bits = Number(word.split("Cheer")[1]);
+        if (bits) {
+            actualBits += bits;
+        }
+    }
+
+    bitterInfo.bits += actualBits;
+    chatInfo.totalBits += actualBits;
 
     chatInfo.chatters[msg.commenter.name] = bitterInfo;
 }
 
-function updateDonation(msg) {
+function updateHitByGift(msg) {
+    let isGiftLog = msg.message.body.includes(' gifted a Tier ');
+    if (!isGiftLog) return;
+
+    let words = msg.message.body.split('!')[0].split(' ');
+    let giftedName = words[words.length - 1];
+    chatInfo.gifted.push(giftedName);
+}
+
+function updateGifted(msg) {
     let body = msg.message.body;
+    let isGifted = body.includes(' is gifting ') && body.includes("AdmiralBahroo's community");
+
+    if (!isGifted) return;
     let isTier1 = body.includes('Tier 1');
     let isTier2 = body.includes('Tier 2');
     let isTier3 = body.includes('Tier 3');
-    let isDuplicateMsg = body.includes("AdmiralBahroo's community");
+    let numSubs = Number(body.split(' is gifting ')[1].split(' ')[0]);
 
-    if ((!isTier1 && !isTier2 && !isTier3) || isDuplicateMsg) {
-        return;
-    }
-    if (isTier1) chatInfo.total1Subs += 1;
-    if (isTier2) chatInfo.total2Subs += 1;
-    if (isTier3) chatInfo.total3Subs += 1;
+    if (!numSubs) return;
 
     let subberInfo = chatInfo.chatters[msg.commenter.name];
     if (!subberInfo) {
@@ -87,19 +105,60 @@ function updateDonation(msg) {
         }
     }
 
-    let isGifted = body.includes('gifted');
-    if (isGifted) {
-        let sections = body.split(' ');
-        let recipient = sections[sections.length - 2].split('!')[0];
-        chatInfo.gifted.push(recipient);
+    if (isTier1) {
+        subberInfo.tier1Gifted += numSubs;
+        chatInfo.total1Subs += numSubs;
+    }
+    if (isTier2) {
+        subberInfo.tier2Gifted += numSubs;
+        chatInfo.total2Subs += numSubs;
+    }
+    if (isTier3) {
+        subberInfo.tier3Gifted += numSubs;
+        chatInfo.total3Subs += numSubs;
+    }
+    chatInfo.chatters[msg.commenter.name] = subberInfo;
+}
 
-        if (isTier1) subberInfo.tier1Gifted += 1;
-        if (isTier2) subberInfo.tier2Gifted += 1;
-        if (isTier3) subberInfo.tier3Gifted += 1;
-    } else {
-        if (isTier1) subberInfo.tier = 1;
-        if (isTier2) subberInfo.tier = 2;
-        if (isTier3) subberInfo.tier = 3;
+function updateSubscription(msg) {
+    let body = msg.message.body;
+
+    let didSub = body.includes(' subscribed at Tier ') || body.includes(' subscribed with Prime ');
+    if (!didSub) return;
+
+    let isTier1 = body.includes('Tier 1') || body.includes('subscribed with Prime');
+    let isTier2 = body.includes('Tier 2');
+    let isTier3 = body.includes('Tier 3');
+
+    if ((!isTier1 && !isTier2 && !isTier3)) {
+        return;
+    }
+
+    let subberInfo = chatInfo.chatters[msg.commenter.name];
+    if (!subberInfo) {
+        subberInfo = {
+            name: msg.commenter.name,
+            displayName: msg.commenter.display_name,
+            messages: 0,
+            tier: undefined,
+            tier1Gifted: 0,
+            tier2Gifted: 0,
+            tier3Gifted: 0,
+            bits: 0,
+        }
+    }
+
+    if (isTier1) {
+        chatInfo.total1Subs += 1;
+        subberInfo.tier = 1;
+    }
+    if (isTier2) {
+        chatInfo.total2Subs += 1;
+        subberInfo.tier = 2;
+    }
+    if (isTier3) {
+        chatInfo.total3Subs += 1;
+        subberInfo.tier = 3;
     }
 
     chatInfo.chatters[msg.commenter.name] = subberInfo;
