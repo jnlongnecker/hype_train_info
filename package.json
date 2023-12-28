@@ -1,0 +1,11 @@
+{
+  "name": "hype_train",
+  "version": "1.0.0",
+  "description": "Code for parsing the hype train contributors",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Jared Longnecker",
+  "license": "ISC"
+}
